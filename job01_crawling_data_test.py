@@ -6,10 +6,12 @@ from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import time
+import random
 
 # 셀레니움 브라우저 설정
 options = Options()
 options.add_argument('--start-maximized')
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
 hrefs = []
@@ -47,7 +49,7 @@ for i in range(3): # 여기 값 수정  (현재년도 - range())
 
 
     # 상위 10개 프로그램 링크 수집
-    program_elements = driver.find_elements(By.CSS_SELECTOR, 'a.title-list-grid__item--link')[:5] # [:5] 이거 지우면 다 돔
+    program_elements = driver.find_elements(By.CSS_SELECTOR, 'a.title-list-grid__item--link')[:300] # [:5] 이거 지우면 다 돔
 
     for elem in program_elements:
         href = elem.get_attribute('href')
@@ -58,7 +60,7 @@ video_info = []
 for i, url in enumerate(hrefs):
     try:
         driver.get(url)
-        time.sleep(2)
+        time.sleep(random.uniform(2.5, 4.5)) # 딜레이 랜덤값으로 봇탐지 방지
 
         # 제목
         try:
@@ -95,5 +97,5 @@ driver.quit()
 
 # 결과 저장
 df = pd.DataFrame(video_info, columns=["title", "synopsis", "genre"])
-df.to_csv('justwatch_test.csv', index=False, encoding='utf-8-sig')
+df.to_csv('./crawling_data/justwatch_test.csv', index=False, encoding='utf-8-sig')
 print("🎉 테스트 완료! justwatch_test.csv 저장됨")
