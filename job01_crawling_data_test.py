@@ -12,18 +12,48 @@ options = Options()
 options.add_argument('--start-maximized')
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-# JustWatch 한국 페이지 (일부 장르 제외)
-url = 'https://www.justwatch.com/kr?exclude_genres=ani,eur,msc,war,wsn'
+hrefs = []
+
+
+# 모두 수락한다 용(일단은)
+url = 'https://www.justwatch.com/kr'
 driver.get(url)
-time.sleep(2)  # 페이지 로딩 대기
+time.sleep(5)
 
 
-# 상위 10개 프로그램 링크 수집
-program_elements = driver.find_elements(By.CSS_SELECTOR, 'a.title-list-grid__item--link')[:5]
-hrefs = [elem.get_attribute('href') for elem in program_elements]
+for i in range(3): # 여기 값 수정  (현재년도 - range())
+    year = 2025 - i
+    url = 'https://www.justwatch.com/kr?exclude_genres=ani,eur,msc,trl,war,wsn&release_year_from={0}&release_year_until={0}'.format(year)
+    driver.get(url)
+    time.sleep(2)  # 페이지 로딩 대기
+
+    # 🔻 페이지 끝까지 스크롤
+    SCROLL_PAUSE_TIME = 1  # 스크롤 후 대기 시간 (초)
+
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while True:
+        # 아래로 스크롤
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(SCROLL_PAUSE_TIME)
+
+        # 새로운 높이 계산
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        # 스크롤 더 이상 변화 없으면 종료
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+
+    # 상위 10개 프로그램 링크 수집
+    program_elements = driver.find_elements(By.CSS_SELECTOR, 'a.title-list-grid__item--link')[:5] # [:5] 이거 지우면 다 돔
+
+    for elem in program_elements:
+        href = elem.get_attribute('href')
+        hrefs.append(href)
 
 video_info = []
-
 # 10개 프로그램 상세 정보 크롤링
 for i, url in enumerate(hrefs):
     try:
@@ -53,17 +83,17 @@ for i, url in enumerate(hrefs):
         video_info.append({
             "title": title,
             "synopsis": synopsis,
-            "genres": genre
+            "genre": genre
         })
 
-        print(f"✅ {i+1}/10: {title} | {genre}")
+        print(f"✅ {i+1}/{len(hrefs)}: {title} | {genre}")
     except Exception as e:
-        print(f"❌ {i+1}/10 에러: {e}")
+        print(f"❌ {i+1}/{len(hrefs)} 에러: {e}")
         continue
 
 driver.quit()
 
 # 결과 저장
-df = pd.DataFrame(video_info, columns=["title", "synopsis", "genres"])
-df.to_csv('justwatch_test_10.csv', index=False, encoding='utf-8-sig')
-print("🎉 테스트 완료! justwatch_test_10.csv 저장됨")
+df = pd.DataFrame(video_info, columns=["title", "synopsis", "genre"])
+df.to_csv('justwatch_test.csv', index=False, encoding='utf-8-sig')
+print("🎉 테스트 완료! justwatch_test.csv 저장됨")
