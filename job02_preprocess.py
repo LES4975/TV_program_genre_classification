@@ -8,31 +8,70 @@ from keras.utils import to_categorical
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import re
+from sklearn.utils import resample  # ✅ 추가
+
+ALLOWED_GENRES = [
+    'Reality TV', 'SF', '가족', '공포', '다큐멘터리',
+    '드라마', '로맨스', '범죄', '스포츠', '액션', '역사', '코미디', '판타지'
+]
+# ✅ 오버샘플링 함수 정의
+from collections import Counter
+
+def oversample_by_individual_label(df, allowed_genres, genre_col='genre'):
+    # 1. 장르별 등장 횟수 세기
+    all_labels = [g for sublist in df[genre_col] for g in sublist]
+    label_counts = Counter(all_labels)
+
+    # 2. 목표 등장 횟수 (가장 많은 장르 수로 맞춤)
+    target_count = max(label_counts[g] for g in allowed_genres)
+
+    # 3. 장르별로 부족한 만큼 복제
+    dfs = [df]  # 원본 포함
+    for genre in allowed_genres:
+        genre_df = df[df[genre_col].apply(lambda x: genre in x)]
+        count = label_counts[genre]
+        if count < target_count:
+            needed = target_count - count
+            sampled = resample(genre_df, replace=True, n_samples=needed, random_state=42)
+            dfs.append(sampled)
+
+    df_balanced = pd.concat(dfs).reset_index(drop=True)
+    return df_balanced
 
 # 1. 데이터 불러오기
-df = pd.read_csv('./crawling_data/justwatch_test.csv')
+df = pd.read_csv('./crawling_data/data.csv')
 # 혹시 모를 중복 행 제거 및 인덱스 재정렬
 df.drop_duplicates(inplace=True)
 df.reset_index(drop=True, inplace=True)
+df = df.dropna(subset=['title', 'synopsis', 'genre']).reset_index(drop=True)
 
-#장르에 쓸데없는 값은 안받기
-def clean_genres(genre_str):
-    genres = [g.strip() for g in genre_str.split(',') if g.strip() != '']
-    filtered = []
-    for g in genres:
-        # 숫자 괄호 형태 제거: (123)
-        if re.fullmatch(r'\(\d+\)', g):
-            continue
-        # 명백한 이상값 제거 (예: 권대현)
-        if g == '권대현':
-            continue
-        filtered.append(g)
-    return filtered
+def clean_genres(genres):
+    if isinstance(genres, str):  # 혹시 문자열이면 split
+        genres = [g.strip() for g in genres.split(',') if g.strip() != '']
+    return [g for g in genres if g in ALLOWED_GENRES]
+
+
+# --- 장르 전처리 ---
+df['genre'] = df['genre'].fillna('').apply(clean_genres)
+df['synopsis'] = df['synopsis'].fillna('')
 
 # 2. 텍스트 & 장르 설정
-X = df['synopsis'].fillna('')
-Y = df['genre'].fillna('').apply(clean_genres)
+X = df['synopsis']
+Y = df['genre']
 
+# --- X, Y 합쳐서 DataFrame 만들기 (오버샘플링 함수는 df 필요) ---
+df_xy = pd.DataFrame({'synopsis': X, 'genre': Y})
+
+# ✅ 오버샘플링 적용 (개별 장르 기준)
+df_xy = oversample_by_individual_label(df_xy, ALLOWED_GENRES)
+
+# --- 다시 분리 ---
+X = df_xy['synopsis']
+Y = df_xy['genre']
+
+has_korean = X.apply(lambda x: bool(re.search('[가-힣]', x)))
+X = X[has_korean].reset_index(drop=True)
+Y = Y[has_korean].reset_index(drop=True)
 
 # 3. 멀티 라벨 인코딩
 mlb = MultiLabelBinarizer()
