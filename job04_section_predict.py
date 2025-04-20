@@ -6,27 +6,37 @@ from keras.preprocessing.sequence import pad_sequences
 from konlpy.tag import Okt
 import re
 
+# 출력 제한 해제
+pd.set_option('display.max_colwidth', None)  # 한 셀에 표시할 최대 길이 제한 없음
+pd.set_option('display.max_columns', None)   # 열 생략 없이 모두 표시
+pd.set_option('display.expand_frame_repr', False)  # 줄바꿈 없이 한 줄에 표시
+
 # --- CSV 불러오기 ---
-df = pd.read_csv('./crawling_data/justwatch_test.csv')  # ← 너 데이터에 맞게 변경
+df = pd.read_csv('./crawling_data/data.csv')  # ← 너 데이터에 맞게 변경
 df.drop_duplicates(inplace=True)
 df.reset_index(drop=True, inplace=True)
+df = df.dropna(subset=['title', 'synopsis', 'genre']).reset_index(drop=True)
 print(df.head())
 df.info()
 
 # --- 텍스트 & 장르 설정 ---
+
+ALLOWED_GENRES = [
+    'Reality TV', 'SF', '가족', '공포', '다큐멘터리',
+    '드라마', '로맨스', '범죄', '스포츠', '액션', '역사', '코미디', '판타지'
+]
+
 def clean_genres(genre_str):
-    genres = [g.strip() for g in genre_str.split(',') if g.strip() != '']
-    filtered = []
-    for g in genres:
-        if re.fullmatch(r'\(\d+\)', g):
-            continue
-        if g == '권대현':
-            continue
-        filtered.append(g)
-    return filtered
+    genre = [g.strip() for g in genre_str.split(',') if g.strip() != '']
+    return [g for g in genre if g in ALLOWED_GENRES]
 
 X = df['synopsis'].fillna('')
 Y = df['genre'].fillna('').apply(clean_genres)  # 필터링 적용
+
+# ✅ 한글 없는 시놉시스 제거
+has_korean = X.apply(lambda x: bool(re.search('[가-힣]', x)))
+X = X[has_korean].reset_index(drop=True)
+Y = Y[has_korean].reset_index(drop=True)
 
 # --- 멀티라벨 인코더 불러오기 ---
 with open('./models/encoder_multilabel.pickle', 'rb') as f:
@@ -46,7 +56,7 @@ for i in range(len(X)):
     X[i] = ' '.join([word for word in X[i] if len(word) > 1])
 
 # --- 토크나이저 불러오기 ---
-with open('./models/token_max_156.pickle', 'rb') as f:
+with open('./models/token_max_250.pickle', 'rb') as f:
     token = pickle.load(f)
 
 tokened_x = token.texts_to_sequences(X)
@@ -64,7 +74,7 @@ y_true = y_true[non_empty_indices]
 x_pad = x_pad[non_empty_indices]
 
 # --- 모델 불러오기 ---
-model = load_model('./models/multilabel_classification_model_0.4375.h5')  # 너 모델 경로에 맞게 수정
+model = load_model('./models/multilabel_classification_model_0.4815.h5')  # 너 모델 경로에 맞게 수정
 
 # --- 예측 ---
 y_pred = model.predict(x_pad)
@@ -80,7 +90,7 @@ for i in range(len(y_pred)):
 
 df['predict'] = predict_section
 df['genre'] = Y
-print(df[['title', 'genre', 'predict']].head(30))
+print(df[[ 'title', 'genre', 'predict']].head(50))
 
 # --- 평가 준비 ---
 df['predict'] = predict_section
@@ -104,7 +114,3 @@ print("✅ 완전 정답률 (정확히 일치):", strict_acc)
 # --- ② 부분 정답률 ---
 loose_acc = df['OX_loose'].mean()
 print("✅ 부분 정답률 (하나 이상 일치):", loose_acc)
-
-# --- ③ Keras 기본 Accuracy ---
-score = model.evaluate(x_pad, y_true, verbose=0)
-print("✅ 모델 Accuracy (keras 방식):", score[1])
