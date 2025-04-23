@@ -39,8 +39,8 @@ driver.get(url)
 time.sleep(5)
 
 
-for i in range(8): # 여기 값 수정  (현재년도 - range())
-    year = 2025 - i
+for i in range(15,126): # 여기 값 수정  (현재년도 - range())
+    year = 2024 - i
     url = 'https://www.justwatch.com/kr?exclude_genres=ani,eur,msc,trl,war,wsn&release_year_from={0}&release_year_until={0}'.format(year)
     driver.get(url)
     time.sleep(2)  # 페이지 로딩 대기
@@ -75,7 +75,7 @@ video_info = []
 # 10개 프로그램 상세 정보 크롤링
 for i, url in enumerate(hrefs):
     retry = 0
-    max_retries = 3  # 최대 재시도 횟수
+    max_retries = 10  # 최대 재시도 횟수
 
     while retry < max_retries:
         try:
