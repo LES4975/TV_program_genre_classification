@@ -42,7 +42,7 @@ def preprocess_text(text):
 
 # ✅ Gemini 시놉시스 생성 함수
 def generate_random_synopsis():
-    prompt = "1.Reality TV, 2.SF, 3.가족, 4.공포, 5.다큐멘터리, 6.드라마, 7.로맨스, 8.범죄, 9.스포츠, 10.액션, 11.역사, 12.코미디, 13.판타지 이 13개의 장르에서 무작위로 번호 1~3개 골라서 그 번호에 해당하는 장르 대답해.0. OOO 형식으로 대답해 다른말은 필요없어"
+    prompt = "1.Reality TV, 2.SF, 3.가족, 4.공포, 5.다큐멘터리, 6.드라마, 7.로맨스, 8.범죄, 9.스포츠, 10.액션, 11.역사, 12.코미디, 13.판타지 이 13개의 장르에서 무작위로 번호 1~3개 골라서 그 번호에 해당하는 장르 대답해줘. 0. OOO 형식으로 대답해 다른말은 필요없어"
     response = model_gemini.generate_content(prompt)
     return response.text.strip()
 
