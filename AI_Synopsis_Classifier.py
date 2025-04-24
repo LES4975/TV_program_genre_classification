@@ -11,7 +11,7 @@ from konlpy.tag import Okt
 
 
 # ✅ Gemini API 키 설정
-genai.configure(api_key=" ")    # API 키 넣기
+genai.configure(api_key="  ")    # API 키 넣기
 model_gemini = genai.GenerativeModel('gemini-2.0-flash')    # 원하는 gemini 모델 넣기
 
 # ✅ 모델 및 토크나이저, 인코더 불러오기
